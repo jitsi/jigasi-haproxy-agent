@@ -1,4 +1,5 @@
 const http = require('http');
+const Logger = require('./Logger');
 
 /**
  * RestClient accesses rest endpoints on jigasi
@@ -12,7 +13,14 @@ class RestClient {
         this._options = {
             host: 'localhost',
             port: 8788,
-            ...options };
+            debug: false,
+            ...options
+        };
+        if (this._options.hasOwnProperty('logger')) {
+            this._logger = this._options.logger;
+        } else {
+            this._logger = new Logger();
+        }
     }
 
     /**
@@ -51,7 +59,9 @@ class RestClient {
                                     + `Expected application/json but received ${contentType}`);
                 }
                 if (error) {
-                    console.error(error.message);
+                    if (this._options.debug) {
+                        this._logger.error(error.message, { err: error });
+                    }
 
                     // Consume response data to free up memory
                     res.resume();
@@ -70,16 +80,18 @@ class RestClient {
                     try {
                         const parsedData = JSON.parse(rawData);
 
-                        //                    console.log(parsedData);
-
                         resolve(parsedData);
                     } catch (e) {
-                        console.error(e.message);
+                        if (this._options.debug) {
+                            this._logger.error(e.message, { err: e });
+                        }
                         reject(e);
                     }
                 });
             }).on('error', e => {
-                console.error(`Got error: ${e.message}`);
+                if (this._options.debug) {
+                    this._logger.error(`HTTP error: ${e.message}`, { err: e });
+                }
                 reject(e);
             });
         });
